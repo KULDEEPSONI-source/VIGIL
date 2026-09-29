@@ -1,0 +1,72 @@
+# ==============================================================================
+# Driver Monitoring System (DMS) Configuration
+# ==============================================================================
+
+camera:
+  # Device index (0 for default built-in webcam, 1 for external USB webcam)
+  device_index: 0
+  # Requested capture resolution
+  width: 1280
+  height: 720
+  fps: 30
+
+yolo:
+  # Path to fine-tuned YOLOv8 model weights
+  model_path: "runs/detect/train/weights/best.pt"
+  # Minimum confidence threshold to consider a detection valid
+  confidence_threshold: 0.6
+  # Number of consecutive frames a detection must persist to trigger a warning
+  consecutive_frames_threshold: 3
+  # Classes tracked by the system
+  target_classes:
+    - "phone"
+    - "cigarette"
+    - "drink"
+    - "mask"
+  # Fallback to base pretrained yolov8n with COCO class mapping if best.pt is missing
+  allow_fallback_to_coco: true
+  fallback_model_path: "yolov8n.pt"
+
+eye_tracking:
+  # 1. Drowsiness detection via Eye Aspect Ratio (EAR)
+  ear_threshold: 0.25
+  ear_consecutive_frames: 20 # ~1 second at 20-30 FPS
+
+  # 2. Distraction detection via Iris Gaze tracking
+  gaze_distraction_seconds: 2.0 # Seconds away from center before alert
+  gaze_horizontal_left_threshold: 0.38
+  gaze_horizontal_right_threshold: 0.62
+  gaze_vertical_up_threshold: 0.35
+  gaze_vertical_down_threshold: 0.65
+
+  # 3. Yawning detection via Mouth Aspect Ratio (MAR)
+  mar_threshold: 0.55
+  mar_consecutive_frames: 15 # ~0.5 - 0.8 second of continuous mouth opening
+  yawn_alert_hold_seconds: 3.0 # Minimum duration to display & hold Yawning Alert
+
+  # 4. Face covering / mask detection
+  face_cover_enabled: true
+  face_cover_confidence_threshold: 0.55
+  face_cover_consecutive_frames: 10 # ~0.3 second of continuous face occlusion
+  face_cover_trigger_alert: true # Trigger alert when face is covered/masked
+
+  # Visual debugging: draw eye landmarks, iris points, and mouth contours
+  draw_landmarks: true
+
+alerts:
+  # Duration in seconds of continuous warning before escalating to critical SMS
+  critical_duration_seconds: 5.0
+  # Cooldown between SMS dispatches to avoid spamming contacts (in seconds)
+  sms_cooldown_seconds: 60.0
+  # Path to event log file
+  log_file: "events.log"
+  # Audible beep warning on alerts
+  sound_beep: true
+
+database:
+  # SQLite database for emergency contacts
+  db_path: "contacts.db"
+
+storage:
+  # Directory where manual snapshots ('s' key) are stored
+  snapshots_dir: "snapshots"
