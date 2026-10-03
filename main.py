@@ -21,6 +21,7 @@ from detection import DistractionDetector
 from eye_tracking import EyeTracker
 from alerts import AlertManager
 from contacts import ContactManager, interactive_prompt_add
+from driver_profile import DriverProfileManager
 
 
 def load_config(config_path: str = "config.yaml") -> Dict[str, Any]:
@@ -92,9 +93,11 @@ def draw_overlay(
 
     # EAR Status (Drowsiness Alert)
     ear = eye_data.get("ear", 0.0)
+    perclos = eye_data.get("perclos", 0.0)
     drowsy_warn = eye_data.get("drowsy_warning", False)
-    ear_color = (0, 0, 255) if drowsy_warn else (0, 255, 128)
-    ear_str = f"EAR (Eyes): {ear:.3f} {'[DROWSY ALERT]' if drowsy_warn else '[NORMAL]'}"
+    micro_sleep = eye_data.get("micro_sleep_warning", False)
+    ear_color = (0, 0, 255) if drowsy_warn or micro_sleep else (0, 255, 128)
+    ear_str = f"EAR (Eyes): {ear:.3f} | PERCLOS: {perclos:.1%}"
     cv2.putText(frame, ear_str, (20, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 0.44, ear_color, 1, cv2.LINE_AA)
     y_offset += line_spacing
 
@@ -133,6 +136,13 @@ def draw_overlay(
     consec = detection_data.get("consecutive_counts", {})
     yolo_str = f"Objects: Phone={consec.get('phone', 0)} Crt={consec.get('cigarette', 0)} Drk={consec.get('drink', 0)}"
     cv2.putText(frame, yolo_str, (20, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (200, 200, 200), 1, cv2.LINE_AA)
+    y_offset += line_spacing
+    
+    # Advanced: Stress & Head Pose
+    stress = eye_data.get("is_stressed", False)
+    pitch, yaw, roll = eye_data.get("head_pose", (0.0, 0.0, 0.0))
+    head_str = f"Head: P:{pitch:.0f} Y:{yaw:.0f} R:{roll:.0f} | {'[HIGH STRESS]' if stress else '[CALM]'}"
+    cv2.putText(frame, head_str, (20, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 0.44, (0, 0, 255) if stress else (0, 255, 128), 1, cv2.LINE_AA)
     y_offset += line_spacing
 
     # Active Alerts & Critical SMS
@@ -180,7 +190,7 @@ def draw_overlay(
     cv2.rectangle(bar_overlay, (0, img_h - bar_h), (img_w, img_h), (15, 15, 15), -1)
     cv2.addWeighted(bar_overlay, 0.8, frame, 0.2, 0, frame)
 
-    nav_text = "[Q] Quit Feed   |   [S] Save Snapshot   |   [C] Add Emergency Contact"
+    nav_text = "[Q] Quit | [S] Snap | [C] Contact | [F] False Alarm | [T] True Pos"
     cv2.putText(
         frame,
         nav_text,
@@ -221,9 +231,18 @@ def run() -> None:
     snapshots_dir = Path(storage_cfg.get("snapshots_dir", "snapshots"))
     snapshots_dir.mkdir(parents=True, exist_ok=True)
 
+    dataset_img_dir = Path("dataset/images/train")
+    dataset_lbl_dir = Path("dataset/labels/train")
+    dataset_img_dir.mkdir(parents=True, exist_ok=True)
+    dataset_lbl_dir.mkdir(parents=True, exist_ok=True)
+    class_map = {"phone": 0, "cigarette": 1, "drink": 2}
+
     # 2. Initialize Contact Manager
     contact_mgr = ContactManager(db_path=db_cfg.get("db_path", "contacts.db"))
     print(f"[INIT] Loaded {contact_mgr.get_contact_count()} registered emergency contact(s).")
+    
+    # 2.5 Initialize Driver Profile Manager
+    profile_mgr = DriverProfileManager()
 
     # 3. Initialize Alert Manager
     alert_mgr = AlertManager(
@@ -309,6 +328,8 @@ def run() -> None:
                 time.sleep(0.05)
                 continue
 
+            clean_frame = frame.copy()
+
             current_time = time.time()
             dt = current_time - prev_time
             if dt > 0:
@@ -320,6 +341,28 @@ def run() -> None:
 
             # 2. Run MediaPipe Face Mesh (Eyes, Gaze, Yawning, Face Cover)
             eye_res = eye_tracker.process(frame)
+            
+            # Active Driver Identification & Calibration
+            if eye_res.get("face_detected"):
+                if profile_mgr.current_driver_id is None:
+                    driver_id = profile_mgr.identify_driver(clean_frame, face_bbox=eye_res.get("face_bbox"))
+                    if driver_id:
+                        thresh = profile_mgr.get_current_thresholds()
+                        if thresh:
+                            eye_tracker.ear_threshold = thresh["ear_threshold"]
+                            eye_tracker.mar_threshold = thresh["mar_threshold"]
+                            toast_message = f"Welcome {driver_id}! Profile loaded."
+                            toast_expiry = time.time() + 4.0
+                elif profile_mgr.is_calibrating:
+                    profile_mgr.update_calibration(eye_res.get("ear", 0.0), eye_res.get("mar", 0.0))
+                    toast_message = f"Calibrating {profile_mgr.current_driver_id}... Please drive normally."
+                    toast_expiry = time.time() + 0.1
+                    if not profile_mgr.is_calibrating:
+                        thresh = profile_mgr.get_current_thresholds()
+                        eye_tracker.ear_threshold = thresh["ear_threshold"]
+                        eye_tracker.mar_threshold = thresh["mar_threshold"]
+                        toast_message = "Calibration Complete!"
+                        toast_expiry = time.time() + 3.0
 
             now = time.time()
             mouth_center = eye_res.get("mouth_center")
@@ -366,6 +409,9 @@ def run() -> None:
                 mask_duration=eye_res["mask_duration"],
                 smoking_warning=smoking_warning,
                 smoking_duration=smoking_duration,
+                microsleep_warning=eye_res.get("micro_sleep_warning", False),
+                hypnosis_warning=eye_res.get("hypnosis_warning", False),
+                stress_warning=eye_res.get("is_stressed", False),
             )
 
             # 4. Render On-Screen HUD Overlay
@@ -389,6 +435,49 @@ def run() -> None:
             if key == ord("q") or key == 27:
                 print("[INFO] User initiated shutdown.")
                 break
+
+            elif key == ord("f") or key == ord("t"):
+                timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+                img_path = dataset_img_dir / f"frame_{timestamp_str}.jpg"
+                lbl_path = dataset_lbl_dir / f"frame_{timestamp_str}.txt"
+                
+                cv2.imwrite(str(img_path), clean_frame)
+                
+                if key == ord("f"):
+                    # False Alarm -> Background image (empty label file)
+                    lbl_path.touch()
+                    toast_message = "False Alarm Logged!"
+                    print(f"[ACTIVE LEARNING] Saved false alarm background to: {img_path.name}")
+                    
+                    # Update personal thresholds if it was a drowsy or yawn alert
+                    if alert_summary.get("active_alerts"):
+                        active_msg = alert_summary["active_alerts"][0]
+                        if "DROWSY" in active_msg or "DROWSINESS" in active_msg:
+                            profile_mgr.record_false_alarm("drowsy")
+                            thresh = profile_mgr.get_current_thresholds()
+                            eye_tracker.ear_threshold = thresh["ear_threshold"]
+                        elif "YAWNING" in active_msg or "YAWN" in active_msg:
+                            profile_mgr.record_false_alarm("yawning")
+                            thresh = profile_mgr.get_current_thresholds()
+                            eye_tracker.mar_threshold = thresh["mar_threshold"]
+                else:
+                    # True Positive -> Save bounding boxes
+                    h_img, w_img = clean_frame.shape[:2]
+                    with open(lbl_path, "w") as f_lbl:
+                        for obj in detection_res.get("detected_objects", []):
+                            cls_name = obj.get("class")
+                            cls_id = class_map.get(cls_name)
+                            if cls_id is not None:
+                                x1, y1, x2, y2 = obj.get("box")
+                                cx = (x1 + x2) / 2.0 / w_img
+                                cy = (y1 + y2) / 2.0 / h_img
+                                bw = (x2 - x1) / w_img
+                                bh = (y2 - y1) / h_img
+                                f_lbl.write(f"{cls_id} {cx:.6f} {cy:.6f} {bw:.6f} {bh:.6f}\n")
+                    toast_message = "True Detection Logged!"
+                    print(f"[ACTIVE LEARNING] Saved true positive to: {img_path.name}")
+                
+                toast_expiry = time.time() + 2.0
 
             elif key == ord("s"):
                 timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")

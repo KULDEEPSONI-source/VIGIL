@@ -1,0 +1,11 @@
+{
+    "Driver_1": {
+        "name": "Driver_1",
+        "label_id": 1,
+        "baseline_ear": 0.316,
+        "baseline_mar": 0.006,
+        "ear_threshold": 0.253,
+        "mar_threshold": 0.4,
+        "total_drives": 1
+    }
+}

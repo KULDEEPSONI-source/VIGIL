@@ -109,14 +109,43 @@ class EyeTracker:
         self.is_masked: bool = False
         self.mask_confidence: float = 0.0
 
+        # Advanced tracking (PERCLOS, Micro-sleep, Hypnosis)
+        self.rolling_eye_states = [] # list of (timestamp, is_closed)
+        self.is_currently_blinking = False
+        self.blink_start_time = 0.0
+        self.last_blink_time = time.time()
+        self.current_blink_duration = 0.0
+        self.total_blinks = 0
+        self.micro_sleep_warning = False
+        self.hypnosis_warning = False
+        self.perclos = 0.0
+        
+        # Stress / Emotion
+        self.is_stressed = False
+
         # MediaPipe FaceMesh initialization
-        self.mp_face_mesh = mp.solutions.face_mesh
-        self.face_mesh = self.mp_face_mesh.FaceMesh(
-            max_num_faces=1,
-            refine_landmarks=True,
-            min_detection_confidence=0.5,
-            min_tracking_confidence=0.5,
-        )
+        try:
+            BaseOptions = mp.tasks.BaseOptions
+            FaceLandmarker = mp.tasks.vision.FaceLandmarker
+            FaceLandmarkerOptions = mp.tasks.vision.FaceLandmarkerOptions
+            VisionRunningMode = mp.tasks.vision.RunningMode
+
+            options = FaceLandmarkerOptions(
+                base_options=BaseOptions(model_asset_path='face_landmarker.task'),
+                running_mode=VisionRunningMode.IMAGE,
+                num_faces=1,
+                min_face_detection_confidence=0.5,
+                min_face_presence_confidence=0.5,
+                min_tracking_confidence=0.5,
+                output_facial_transformation_matrixes=True,
+                output_face_blendshapes=True
+            )
+            self.face_mesh = FaceLandmarker.create_from_options(options)
+            self.mp_face_mesh = True
+        except Exception as e:
+            print(f"[WARNING] MediaPipe FaceLandmarker init failed: {e}. Eye tracking will be disabled.")
+            self.mp_face_mesh = None
+            self.face_mesh = None
 
     @staticmethod
     def _euclidean_distance(pt1: Tuple[float, float], pt2: Tuple[float, float]) -> float:
@@ -357,9 +386,13 @@ class EyeTracker:
         now = time.time()
 
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        results = self.face_mesh.process(rgb_frame)
+        if self.face_mesh is None:
+            results = type('obj', (object,), {'face_landmarks': []})()
+        else:
+            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
+            results = self.face_mesh.detect(mp_image)
 
-        if not results.multi_face_landmarks:
+        if not hasattr(results, 'face_landmarks') or not results.face_landmarks:
             self.drowsy_frame_count = 0
             self.drowsy_start_time = None
             self.is_drowsy = False
@@ -390,29 +423,86 @@ class EyeTracker:
                 "mask_confidence": 0.0,
                 "mask_warning": False,
                 "mask_duration": 0.0,
+                "perclos": 0.0,
+                "micro_sleep_warning": False,
+                "hypnosis_warning": False,
+                "is_stressed": False,
+                "head_pose": (0.0, 0.0, 0.0)
             }
 
-        landmarks = results.multi_face_landmarks[0].landmark
+        landmarks = results.face_landmarks[0]
+        
+        # Extract Head Pose from Transformation Matrix
+        pitch, yaw, roll = 0.0, 0.0, 0.0
+        if results.facial_transformation_matrixes:
+            matrix = results.facial_transformation_matrixes[0]
+            # Decompose rotation matrix
+            sy = math.sqrt(matrix[0,0] * matrix[0,0] + matrix[1,0] * matrix[1,0])
+            singular = sy < 1e-6
+            if not singular:
+                pitch = math.atan2(matrix[2,1], matrix[2,2]) * 180 / math.pi
+                yaw = math.atan2(-matrix[2,0], sy) * 180 / math.pi
+                roll = math.atan2(matrix[1,0], matrix[0,0]) * 180 / math.pi
+            else:
+                pitch = math.atan2(-matrix[1,2], matrix[1,1]) * 180 / math.pi
+                yaw = math.atan2(-matrix[2,0], sy) * 180 / math.pi
+                roll = 0
+
+        # Stress / Emotion Heuristics
+        # Inner eyebrow distance vs outer eyebrow distance
+        l_inner_brow = landmarks[107]
+        r_inner_brow = landmarks[336]
+        l_outer_brow = landmarks[105]
+        r_outer_brow = landmarks[334]
+        
+        inner_dist = self._euclidean_distance((l_inner_brow.x, l_inner_brow.y), (r_inner_brow.x, r_inner_brow.y))
+        outer_dist = self._euclidean_distance((l_outer_brow.x, l_outer_brow.y), (r_outer_brow.x, r_outer_brow.y))
+        brow_ratio = inner_dist / (outer_dist + 1e-6)
+        
+        # If brows are drawn tightly together, it's a sign of stress/anger/concentration
+        self.is_stressed = (brow_ratio < 0.65)
+        
+        # Calculate bounding box from landmarks
+        x_coords = [lm.x for lm in landmarks]
+        y_coords = [lm.y for lm in landmarks]
+        x_min, x_max = min(x_coords) * img_w, max(x_coords) * img_w
+        y_min, y_max = min(y_coords) * img_h, max(y_coords) * img_h
+        face_bbox = (int(x_min), int(y_min), int(x_max - x_min), int(y_max - y_min))
 
         # 1. EAR Calculation (Drowsiness)
         r_ear = self.calculate_ear(landmarks, self.RIGHT_EYE_INDICES, img_w, img_h)
         l_ear = self.calculate_ear(landmarks, self.LEFT_EYE_INDICES, img_w, img_h)
         avg_ear = (r_ear + l_ear) / 2.0
 
-        if avg_ear < self.ear_threshold:
-            self.drowsy_frame_count += 1
-            if self.drowsy_frame_count >= self.ear_consecutive_frames:
-                if self.drowsy_start_time is None:
-                    self.drowsy_start_time = now
-                self.is_drowsy = True
-            else:
-                self.is_drowsy = False
-        else:
-            self.drowsy_frame_count = 0
-            self.drowsy_start_time = None
-            self.is_drowsy = False
+        is_eye_closed = (avg_ear < self.ear_threshold)
+        
+        # PERCLOS tracking (Rolling 60 seconds)
+        self.rolling_eye_states.append((now, is_eye_closed))
+        self.rolling_eye_states = [s for s in self.rolling_eye_states if now - s[0] <= 60.0]
+        closed_frames = sum(1 for s in self.rolling_eye_states if s[1])
+        self.perclos = (closed_frames / len(self.rolling_eye_states)) if self.rolling_eye_states else 0.0
 
-        drowsy_duration = (now - self.drowsy_start_time) if self.drowsy_start_time else 0.0
+        # Blink & Micro-sleep tracking
+        if is_eye_closed:
+            if not self.is_currently_blinking:
+                self.is_currently_blinking = True
+                self.blink_start_time = now
+            self.current_blink_duration = now - self.blink_start_time
+            self.micro_sleep_warning = (self.current_blink_duration > 0.5) # >500ms blink is a microsleep
+        else:
+            if self.is_currently_blinking:
+                self.is_currently_blinking = False
+                self.last_blink_time = now
+                self.total_blinks += 1
+            self.current_blink_duration = 0.0
+            self.micro_sleep_warning = False
+
+        # Highway Hypnosis (No blinks for 15 seconds)
+        self.hypnosis_warning = (now - self.last_blink_time > 15.0)
+
+        # Basic Drowsy fall-back (if they trigger PERCLOS > 15%)
+        self.is_drowsy = (self.perclos > 0.15) or self.micro_sleep_warning
+        drowsy_duration = self.current_blink_duration
 
         # 2. Gaze Estimation
         gaze, h_ratio, v_ratio = self.estimate_gaze(landmarks, img_w, img_h, avg_ear)
@@ -512,6 +602,12 @@ class EyeTracker:
             "mask_confidence": float(mask_conf),
             "mask_warning": mask_alert_active,
             "mask_duration": mask_duration,
+            "perclos": self.perclos,
+            "micro_sleep_warning": self.micro_sleep_warning,
+            "hypnosis_warning": self.hypnosis_warning,
+            "is_stressed": self.is_stressed,
+            "head_pose": (pitch, yaw, roll),
+            "face_bbox": face_bbox,
             "mouth_center": mouth_center,
         }
 

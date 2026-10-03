@@ -151,6 +151,9 @@ class AlertManager:
         mask_duration: float = 0.0,
         smoking_warning: bool = False,
         smoking_duration: float = 0.0,
+        microsleep_warning: bool = False,
+        hypnosis_warning: bool = False,
+        stress_warning: bool = False,
     ) -> None:
         """
         Update the current alert state across all DMS safety vectors:
@@ -212,6 +215,20 @@ class AlertManager:
                 current_criticals.append(
                     f"CRITICAL BEHAVIOR: {cls_name.upper()} ({duration:.1f}s)"
                 )
+        
+        # 7. Advanced Cognitive / Fatigue Alerts
+        if microsleep_warning:
+            msg = "CRITICAL ALERT: MICRO-SLEEP DETECTED"
+            current_warnings.append(msg)
+            current_criticals.append(msg)
+            
+        if hypnosis_warning:
+            msg = "WARNING: HIGHWAY HYPNOSIS (No blinks > 15s)"
+            current_warnings.append(msg)
+            
+        if stress_warning:
+            msg = "WARNING: HIGH STRESS / ANGER DETECTED"
+            current_warnings.append(msg)
 
         # Detect new warnings to log and beep
         for warn in current_warnings:
