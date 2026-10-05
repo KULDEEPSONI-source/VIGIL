@@ -84,7 +84,7 @@ def draw_overlay(
     y_offset = 56
     line_spacing = 21
 
-    # Face Status
+    # ---------------- FACE DETECTION STATUS ----------------
     face_detected = eye_data.get("face_detected", False)
     face_str = "DETECTED" if face_detected else "NO FACE DETECTED"
     face_col = (0, 255, 0) if face_detected else (0, 165, 255)
