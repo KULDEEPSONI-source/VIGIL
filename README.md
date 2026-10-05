@@ -1,8 +1,3 @@
-<<<<<<< HEAD
-# Real-Time Driver Monitoring System (DMS)
-
-A complete, production-ready Driver Monitoring System (DMS) built in Python using **OpenCV**, **Ultralytics YOLOv8**, and **MediaPipe Face Mesh**.
-=======
 #  REAL TIME DRIVER DROWSINESS DETECTION
 
  A real-time Drowsiness Detection System that monitors a driver's facial features through a webcam and detects signs of fatigue or drowsiness. When prolonged eye closure or other signs of drowsiness are detected, the system triggers an alert to help prevent accidents caused by driver fatigue.The System is built in Python using **OpenCV**, **Ultralytics YOLOv8**, and **MediaPipe Face Mesh**. It watches the driver through a webcam, detects drowsiness, gaze distraction, and risky behaviors (eye cloure, facual features, facia tilt angle, phone usage, seat belt detection, alchohol consumption) and escalates critical incidents to emergency contacts via **SMS**.
