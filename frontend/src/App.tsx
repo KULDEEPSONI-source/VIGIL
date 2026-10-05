@@ -30,7 +30,7 @@ function App() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <header style={{ height: '64px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', padding: '0 24px', justifyContent: 'flex-end', backgroundColor: 'var(--surface-1)' }}>
                 <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                    <div style={{ padding: '4px 8px', backgroundColor: 'rgba(242, 182, 50, 0.2)', color: 'var(--attention)', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>MOCK DEMO</div>
+                    <div style={{ padding: '4px 8px', backgroundColor: 'rgba(0, 255, 128, 0.2)', color: 'var(--safe)', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>LIVE</div>
                     <div className="mono">DR-001 Rahul</div>
                     <button style={{ background: 'transparent', border: '1px solid var(--border-strong)', color: 'var(--text)', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>End Session</button>
                 </div>

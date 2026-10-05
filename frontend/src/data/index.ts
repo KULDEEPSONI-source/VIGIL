@@ -1,3 +1,3 @@
-import { MockTelemetrySource } from "./mockTelemetrySource";
-export const telemetrySource = new MockTelemetrySource();
+import { LiveTelemetrySource } from "./liveTelemetrySource";
+export const telemetrySource = new LiveTelemetrySource();
 telemetrySource.start();
