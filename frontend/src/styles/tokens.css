@@ -1,0 +1,40 @@
+:root {
+  --bg: #0A0D12;
+  --surface-1: #11151C;
+  --surface-2: #171C25;
+  --surface-3: #1E2430;
+  --border: #262D3A;
+  --border-strong: #323B4B;
+  
+  --text: #E8ECF2;
+  --text-dim: #9AA4B5;
+  --text-faint: #667085;
+  
+  --safe: #2FBF71;
+  --attention: #F2B632;
+  --high: #F2873A;
+  --critical: #EF4444;
+  
+  --safe-bg: rgba(47, 191, 113, 0.12);
+  --attention-bg: rgba(242, 182, 50, 0.12);
+  --high-bg: rgba(242, 135, 58, 0.12);
+  --critical-bg: rgba(239, 68, 68, 0.12);
+  
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+}
+
+body {
+  margin: 0;
+  font-family: "Inter", sans-serif;
+  background-color: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.mono {
+  font-family: "JetBrains Mono", monospace;
+  font-variant-numeric: tabular-nums;
+}
