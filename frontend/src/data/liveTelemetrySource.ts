@@ -38,7 +38,7 @@ export class LiveTelemetrySource implements TelemetrySource {
     restart(): void {}
     next(): void {}
     reset(): void {}
-    selectDriver(id: string): void {}
+    selectDriver(_id: string): void {}
     getState(): { playing: boolean; stepIndex: number; stepCount: number } {
         return { playing: !!this.intervalId, stepIndex: 0, stepCount: 1 };
     }

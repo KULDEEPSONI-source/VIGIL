@@ -1,12 +1,46 @@
-# Real-Time Driver Monitoring System (DMS)
+#  REAL TIME DRIVER DROWSINESS DETECTION
 
-A complete, production-ready Driver Monitoring System (DMS) built in Python using **OpenCV**, **Ultralytics YOLOv8**, and **MediaPipe Face Mesh**.
+ A real-time Drowsiness Detection System that monitors a driver's facial features through a webcam and detects signs of fatigue or drowsiness. When prolonged eye closure or other signs of drowsiness are detected, the system triggers an alert to help prevent accidents caused by driver fatigue.The System is built in Python using **OpenCV**, **Ultralytics YOLOv8**, and **MediaPipe Face Mesh**. It watches the driver through a webcam, detects drowsiness, gaze distraction, and risky behaviors (eye cloure, facual features, facia tilt angle, phone usage, seat belt detection, alchohol consumption) and escalates critical incidents to emergency contacts via **SMS**.
+
+ ## Problem Statemnt
+ Driver drowsiness is a major cause of road accidents, particularly during long-distance and night-time driving. Fatigue can reduce a driver's alertness, reaction time, and ability to make safe decisions. Since drowsiness is difficult to recognize before an accident occurs, there is a need for an automated system that can continuously monitor the driver's level of alertness.
+The proposed Drowsiness Detection System uses a camera and computer vision techniques to monitor the driver's facial features, phone usage, whether is driver is drunk and seat belt detection. If any of this is indicated, the system generates an alert to warn the driver and help prevent potential accidents.
+>>>>>>> 8947397 (modifying the readme file)
 
 The system monitors the driver in real-time through a webcam feed to identify distractions, drowsiness, and dangerous driver behaviors, escalating critical incidents to emergency contacts via Twilio SMS.
 
 ---
 
+<<<<<<< HEAD
 ## 🌟 Key Features
+=======
+## Project Overview
+ This project uses Computer Vision and Machine Learning techniques to analyze the driver's eyes and facial landmarks in real time.
+
+The system continuously captures frames from a webcam, detects the driver's face and eyes, calculates an eye-related metric, and determines whether the driver is alert or drowsy.
+
+If drowsiness is detected for a predefined duration, an alarm/alert is triggered.
+## Table of Contents
+
+- [Features](#-features)
+- [How It Works](#-how-it-works)
+- [Project Structure](#-project-structure)
+- [Installation](#-installation)
+- [Dataset Preparation](#-dataset-preparation)
+- [Model Training](#-model-training)
+- [Running the System](#-running-the-system)
+- [Controls and HUD](#-controls-and-hud)
+- [Emergency Contacts](#-emergency-contacts)
+- [Twilio SMS Setup](#-twilio-sms-setup)
+- [Edge Cases Handled](#-edge-cases-handled)
+- [Configuration](#-configuration)
+- [Roadmap](#-roadmap)
+- [License](#-license)
+
+---
+
+## Features
+>>>>>>> 8947397 (modifying the readme file)
 
 | Feature | Detection Method | Alert Criteria |
 | :--- | :--- | :--- |
@@ -18,7 +52,29 @@ The system monitors the driver in real-time through a webcam feed to identify di
 
 ---
 
+<<<<<<< HEAD
 ## 📁 Project Architecture & File Tree
+=======
+## How It Works
+
+```text
+Webcam Frame
+     │
+     ├──► YOLOv8n Detector ──► phone / cigarette / drink ──┐
+     │                                                      │
+     └──► MediaPipe Face Mesh ──► EAR + Iris Gaze ─────────┤
+                                                            ▼
+                                              Alert Manager (alerts.py)
+                                                            │
+                          ┌─────────────────────────────────┼────────────────────┐
+                          ▼                                 ▼                    ▼
+                    HUD Banner + Sound               events.log        Twilio SMS (> 5 s)
+```
+
+---
+
+## Project Structure
+>>>>>>> 8947397 (modifying the readme file)
 
 ```text
 project-model-train/
@@ -49,7 +105,11 @@ project-model-train/
 
 ---
 
+<<<<<<< HEAD
 ## ⚙️ Installation & Setup
+=======
+## Installation
+>>>>>>> 8947397 (modifying the readme file)
 
 ### 1. Clone or Open Project
 ```bash
@@ -70,9 +130,13 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+<<<<<<< HEAD
 ---
 
 ## 📦 Dataset Preparation & Restructuring Guide
+=======
+## Dataset Preparation
+>>>>>>> 8947397 (modifying the readme file)
 
 To fine-tune YOLOv8 on the 3 custom classes (`phone`, `cigarette`, `drink`), you need annotated images in standard YOLO format.
 
@@ -102,6 +166,7 @@ To fine-tune YOLOv8 on the 3 custom classes (`phone`, `cigarette`, `drink`), you
      2. Map `c6` images to class `2` (`drink`).
      3. For object detection bounding boxes, use auto-annotation tools (e.g., [LabelImg](https://github.com/HumanSignal/labelImg), [CVAT](https://www.cvat.ai/), or Roboflow) to label the phone, cup/bottle, and cigarette bounding boxes.
 
+<<<<<<< HEAD
 ### Target YOLO Annotation Format
 
 Place your files in:
@@ -134,6 +199,12 @@ names:
 ---
 
 ## 🚀 Model Training (Feature 1)
+=======
+
+## Model Training
+
+Fine-tunes YOLOv8n with:
+>>>>>>> 8947397 (modifying the readme file)
 
 Fine-tune YOLOv8n with the exact required parameters:
 - `epochs = 100`
@@ -156,7 +227,11 @@ Once training completes, the best weights will automatically be saved to `runs/d
 
 ---
 
+<<<<<<< HEAD
 ## 🏃 Running the Driver Monitoring System
+=======
+## Running the System
+>>>>>>> 8947397 (modifying the readme file)
 
 Launch the real-time DMS application:
 ```bash
@@ -170,7 +245,11 @@ If you run `python main.py` before training custom weights, the system automatic
 
 ---
 
+<<<<<<< HEAD
 ## 🎮 Interactive Controls & UI
+=======
+## Controls 
+>>>>>>> 8947397 (modifying the readme file)
 
 | Key | Action | Description |
 | :---: | :---: | :--- |
@@ -178,14 +257,20 @@ If you run `python main.py` before training custom weights, the system automatic
 | **`s`** | **Save Snapshot** | Captures the current frame with timestamp into `snapshots/`. |
 | **`c`** | **Add Contact** | Opens an interactive terminal prompt to add an emergency contact into `contacts.db`. |
 
+<<<<<<< HEAD
 ### On-Screen HUD Overlay Details:
 - **Telemetry Box**: Shows Face Detection status, Eye Aspect Ratio (EAR), Gaze Direction, YOLO Object Detection counters, and Active Alerts.
 - **Top Center Warning Banner**: Flashing alert banner whenever drowsiness, distraction, or behavior alerts fire.
 - **Critical Alert Escalation**: If an alert persists for **> 5.0 seconds**, the banner flashes bright red and an emergency SMS is dispatched.
+=======
+>>>>>>> 8947397 (modifying the readme file)
 
----
 
+<<<<<<< HEAD
 ## 📞 Managing Emergency Contacts (Feature 3)
+=======
+## Emergency Contacts
+>>>>>>> 8947397 (modifying the readme file)
 
 Emergency contacts are stored in a local SQLite database (`contacts.db`). You can manage them anytime using `contacts.py`:
 
@@ -211,10 +296,15 @@ python contacts.py --interactive
 
 ---
 
+<<<<<<< HEAD
 ## 📲 Configuring Twilio SMS Alerts
+=======
+## SMS Setup
+>>>>>>> 8947397 (modifying the readme file)
 
 When any critical incident persists for **> 5.0 seconds** (e.g. eyes closed > 5s, looking away > 5s, continuous phone usage > 5s), the system sends an SMS to all registered emergency contacts.
 
+<<<<<<< HEAD
 Set your Twilio credentials as environment variables:
 
 ### Windows (PowerShell):
@@ -257,3 +347,24 @@ export TWILIO_PHONE_NUMBER="+1xxxxxxxxxx"
    - Requires detection above confidence 0.60 for **3+ consecutive frames** before triggering an alert.
 5. **SMS Flood Protection**:
    - Built-in cooldown timer (`sms_cooldown_seconds: 60.0`) prevents spamming contacts during sustained emergencies.
+=======
+
+## 🛡️ Edge Cases Handled
+
+| Case | Behavior |
+| :--- | :--- |
+| **No face detected** | Skips EAR and gaze, resets counters to avoid false alerts, shows `Face: NO FACE DETECTED`. |
+| **Missing YOLO model** | Shows an error banner pointing to `train_yolo.py` and optionally falls back to COCO weights (set in `config.yaml`). |
+| **Camera unavailable** | Prints steps to check USB connection, permissions, or `device_index` in `config.yaml`. |
+| **Detection flicker** | Requires confidence > 0.60 for 3+ consecutive frames before alerting. |
+| **SMS flooding** | 60-second cooldown (`sms_cooldown_seconds: 60.0`) between messages. |
+
+---
+
+## 🔧 Configuration
+
+All thresholds live in `config.yaml`: EAR threshold, consecutive-frame counts, gaze duration, YOLO confidence, camera index, SMS cooldown, and fallback behavior. Adjust them to suit your camera and lighting.
+
+
+
+>>>>>>> 8947397 (modifying the readme file)
