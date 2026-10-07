@@ -1,0 +1,16 @@
+# YOLOv8 Dataset Configuration for Driver Monitoring System (DMS)
+# Root dataset directory path (relative to project root or absolute)
+path: dataset
+
+# Subdirectories for images
+train: images/train
+val: images/val
+
+# Number of classes
+nc: 3
+
+# Class names (strictly mapped to target DMS behaviors)
+names:
+  0: phone
+  1: cigarette
+  2: drink
